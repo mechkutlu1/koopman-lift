@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0a16">
+<title>Koopman Lift — Nonlinear Dynamics in Linear Coordinates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a16; --panel:#151327; --panel-2:#100e20;
+    --line:#2a2645; --line-soft:#201d38;
+    --ink:#eae7f7; --ink-dim:#9691bd; --ink-faint:#625d84;
+    --primary:#a78bfa;
+    --e-mu:#38d9c4;   /* eigenvalue mu  */
+    --e-lam:#b57bff;  /* eigenvalue lam */
+    --e-2mu:#ffb454;  /* eigenvalue 2mu */
+    --stateA:#38d9c4; --stateB:#ffb454;
+    --grid:#1b1832; --glow:0 0 26px rgba(167,139,250,.16);
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1100px 560px at 82% -12%, rgba(167,139,250,.10), transparent 62%),
+      radial-gradient(820px 480px at -6% 108%, rgba(56,217,196,.06), transparent 58%),
+      var(--bg);
+    color:var(--ink); font-family:'Sora',system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+  header{padding:24px clamp(16px,4vw,42px) 0;max-width:1340px;margin:0 auto}
+  .brandrow{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  .brand{font-weight:700;font-size:clamp(21px,2.7vw,32px);letter-spacing:-.02em}
+  .brand .accent{color:var(--primary)}
+  .kicker{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;
+    color:var(--ink-faint);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .sub{color:var(--ink-dim);margin:9px 0 0;font-size:14.5px;max-width:78ch;line-height:1.55}
+  .sub b{color:var(--ink);font-weight:500}
+  .eqhero{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink);margin:12px 0 0;
+    display:inline-flex;gap:18px;flex-wrap:wrap;padding:10px 14px;border:1px solid var(--line-soft);
+    border-radius:12px;background:var(--panel-2)}
+  .eqhero .em{color:var(--e-mu)} .eqhero .el{color:var(--e-lam)}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 4px}
+  .tab{background:var(--panel-2);border:1px solid var(--line-soft);color:var(--ink-dim);padding:11px 18px;
+    border-radius:11px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;transition:.15s;
+    display:flex;flex-direction:column;gap:2px;text-align:left}
+  .tab:hover{border-color:var(--line);color:var(--ink)}
+  .tab .t-sub{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+  .tab.active{border-color:var(--primary);color:var(--ink);
+    background:linear-gradient(180deg,rgba(167,139,250,.10),rgba(167,139,250,.02));box-shadow:var(--glow)}
+  .tab.active .t-sub{color:var(--primary)}
+  .tab:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  main{max-width:1340px;margin:0 auto;padding:16px clamp(16px,4vw,42px) 60px;
+    display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line-soft);
+    border-radius:16px;padding:18px}
+  .panel-h{display:flex;align-items:center;gap:10px;margin:0 0 14px;font-size:12px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);font-family:'IBM Plex Mono',monospace}
+  .panel-h::before{content:"";width:7px;height:7px;border-radius:2px;background:var(--primary);box-shadow:var(--glow)}
+  .rightcol{display:flex;flex-direction:column;gap:18px}
+  .param{margin-bottom:15px}.param:last-child{margin-bottom:0}
+  .param-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+  .param-name{font-size:13.5px;color:var(--ink)}.param-name small{color:var(--ink-faint);font-size:11px}
+  .param-val{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--primary);font-weight:500}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;background:var(--line);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ink);border:3px solid var(--primary);cursor:pointer;box-shadow:0 0 0 3px rgba(167,139,250,.14)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--ink);border:3px solid var(--primary);cursor:pointer}
+  input[type=range]:focus-visible{outline:2px solid var(--primary);outline-offset:4px}
+  .divider{height:1px;background:var(--line-soft);margin:16px 0}
+  .choice{display:flex;flex-direction:column;gap:7px}
+  .choice button{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel-2);
+    border:1px solid var(--line-soft);color:var(--ink-dim);font-family:inherit;font-size:13px;padding:10px 12px;
+    border-radius:10px;cursor:pointer;transition:.12s;text-align:left}
+  .choice button:hover{border-color:var(--line);color:var(--ink)}
+  .choice button.sel{color:var(--ink)}
+  .choice button .tag{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 7px;border-radius:6px;background:var(--line);color:var(--ink-dim)}
+  .choice button.sel[data-ef="mu"]{border-color:var(--e-mu);box-shadow:0 0 18px rgba(56,217,196,.14)}
+  .choice button.sel[data-ef="lam"]{border-color:var(--e-lam);box-shadow:0 0 18px rgba(181,123,255,.16)}
+  .choice button.sel[data-ef="2mu"]{border-color:var(--e-2mu);box-shadow:0 0 18px rgba(255,180,84,.14)}
+  .choice button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  .seg{display:flex;gap:6px;background:var(--panel-2);border:1px solid var(--line-soft);border-radius:10px;padding:4px}
+  .seg button{flex:1;background:transparent;border:none;color:var(--ink-dim);font-family:inherit;padding:8px;border-radius:7px;cursor:pointer;font-size:13px;transition:.12s}
+  .seg button.on{background:var(--line);color:var(--ink)}
+  .seg button:focus-visible{outline:2px solid var(--primary)}
+  .toggles{display:flex;flex-direction:column;gap:10px}
+  .tog{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--ink-dim);user-select:none}
+  .tog input{position:absolute;opacity:0;pointer-events:none}
+  .tog .box{width:34px;height:19px;border-radius:99px;background:var(--line);position:relative;transition:.15s;flex:none}
+  .tog .box::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--ink-faint);transition:.15s}
+  .tog input:checked + .box{background:rgba(167,139,250,.4)}
+  .tog input:checked + .box::after{transform:translateX(15px);background:var(--primary)}
+  .tog input:focus-visible + .box{outline:2px solid var(--primary);outline-offset:2px}
+  canvas{display:block;width:100%;height:auto;border-radius:12px;background:var(--panel-2)}
+  #stage{cursor:crosshair}
+  .stage-cap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:11px;font-size:12px;color:var(--ink-dim)}
+  .stage-cap .hint{color:var(--ink-faint)}
+  .cmap{display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint)}
+  .cmap i{width:74px;height:9px;border-radius:3px;display:inline-block;
+    background:linear-gradient(90deg,#2ec4b6,#155,#0b0a16,#622,#ff8a5c)}
+  .lift{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:620px){.lift{grid-template-columns:1fr}}
+  .eqblock{font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.95;color:var(--ink)}
+  .eqblock .lhs{color:var(--primary)}
+  .matrix{display:inline-grid;grid-template-columns:repeat(3,1fr);gap:3px 14px;font-family:'IBM Plex Mono',monospace;
+    font-size:13px;border-left:2px solid var(--line);border-right:2px solid var(--line);padding:6px 12px;margin-top:4px}
+  .matrix span{text-align:right;min-width:34px;color:var(--ink)}
+  .efrow{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .efcard{border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;background:var(--panel-2)}
+  .efcard .ef-h{display:flex;justify-content:space-between;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:12px}
+  .efcard .ef-form{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);margin-top:5px}
+  .efcard .ev{font-family:'IBM Plex Mono',monospace;font-size:12px}
+  .badge{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 8px;border-radius:999px}
+  .miniplots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:620px){.miniplots{grid-template-columns:1fr}}
+  .mp-h{font-size:12px;color:var(--ink-dim);margin-bottom:8px;font-family:'IBM Plex Mono',monospace}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;font-family:'IBM Plex Mono',monospace;margin-top:8px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--ink-dim)}
+  .dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .note{font-size:12px;color:var(--ink-faint);line-height:1.6;margin-top:10px}
+  .verdict{font-family:'IBM Plex Mono',monospace;font-size:12.5px;padding:9px 12px;border-radius:9px;
+    background:var(--panel-2);border:1px solid var(--line-soft);margin-top:12px;color:var(--ink-dim)}
+  .verdict b{color:var(--e-mu);font-weight:600}
+  footer{max-width:1340px;margin:0 auto;padding:0 clamp(16px,4vw,42px) 40px;color:var(--ink-faint);font-size:12px;line-height:1.7}
+  footer code{color:var(--ink-dim)}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<header>
+  <div class="brandrow">
+    <div class="brand">Koopman <span class="accent">Lift</span></div>
+    <div class="kicker">Nonlinear → linear observables</div>
+  </div>
+  <p class="sub">A nonlinear flow becomes an <b>exactly linear</b> system in the right coordinates. Those coordinates are the Koopman eigenfunctions: nonlinear functions of state that nonetheless evolve as pure exponentials. Here the observables <span class="mono">x₁, x₂, x₁²</span> span an invariant subspace, so the lift is exact — no approximation, which is what makes the linear model trustworthy for control.</p>
+  <div class="eqhero mono">
+    <span>ẋ₁ = <span class="em">μ</span> x₁</span>
+    <span>ẋ₂ = <span class="el">λ</span> (x₂ − x₁²)</span>
+  </div>
+  <div class="tabs" id="tabs" role="tablist" aria-label="View selection">
+    <button class="tab active" data-tab="exact" role="tab"><span class="t-sub">Analytic</span><span>Exact lift</span></button>
+    <button class="tab" data-tab="edmd" role="tab"><span class="t-sub">Data-driven</span><span>From data · EDMD</span></button>
+  </div>
+</header>
+
+<!-- ============ TAB 1: EXACT ============ -->
+<main id="tab-exact">
+  <section class="panel" aria-label="Controls">
+    <div class="panel-h">System</div>
+    <div class="param"><div class="param-top"><span class="param-name">Rate <span class="mono" style="color:var(--e-mu)">μ</span> <small>slow / x₁</small></span><span class="param-val" id="v-mu"></span></div>
+      <input type="range" id="s-mu" min="-1" max="0.2" step="0.01" value="-0.1"></div>
+    <div class="param"><div class="param-top"><span class="param-name">Rate <span class="mono" style="color:var(--e-lam)">λ</span> <small>fast / manifold</small></span><span class="param-val" id="v-lam"></span></div>
+      <input type="range" id="s-lam" min="-2" max="-0.1" step="0.01" value="-1"></div>
+    <div class="divider"></div>
+    <div class="panel-h" style="margin-bottom:10px">Initial condition</div>
+    <div class="param"><div class="param-top"><span class="param-name">x₁(0)</span><span class="param-val" id="v-x1"></span></div>
+      <input type="range" id="s-x1" min="-2" max="2" step="0.05" value="1.4"></div>
+    <div class="param"><div class="param-top"><span class="param-name">x₂(0)</span><span class="param-val" id="v-x2"></span></div>
+      <input type="range" id="s-x2" min="-1" max="4" step="0.05" value="2.6"></div>
+    <div class="note">Tip: click anywhere on the phase portrait to drop the initial condition there.</div>
+    <div class="divider"></div>
+    <div class="panel-h" style="margin-bottom:10px">Show eigenfunction φ(x)</div>
+    <div class="choice" id="ef-choice">
+      <button data-ef="mu" class="sel"><span>φ<sub>μ</sub> = x₁</span><span class="tag" style="color:var(--e-mu)">μ</span></button>
+      <button data-ef="lam"><span>φ<sub>λ</sub> = x₂ − b·x₁²</span><span class="tag" style="color:var(--e-lam)">λ</span></button>
+      <button data-ef="2mu"><span>φ<sub>2μ</sub> = x₁²</span><span class="tag" style="color:var(--e-2mu)">2μ</span></button>
+    </div>
+    <div class="divider"></div>
+    <div class="toggles">
+      <label class="tog"><input type="checkbox" id="t-field" checked><span class="box"></span>Vector field</label>
+      <label class="tog"><input type="checkbox" id="t-contour" checked><span class="box"></span>Eigenfunction level sets</label>
+      <label class="tog"><input type="checkbox" id="t-manifold" checked><span class="box"></span>Slow manifold x₂ = x₁²</label>
+      <label class="tog"><input type="checkbox" id="t-anim" checked><span class="box"></span>Animate flow along trajectory</label>
+    </div>
+  </section>
+
+  <div class="rightcol">
+    <section class="panel" aria-label="Phase space">
+      <div class="panel-h">Phase space · eigenfunction heatmap</div>
+      <canvas id="stage" width="900" height="620"></canvas>
+      <div class="stage-cap">
+        <span class="hint">Curved level sets are carried by the nonlinear flow, yet the eigenfunction's <em>value</em> along any trajectory is a pure exponential.</span>
+        <span class="cmap">φ &lt; 0 <i></i> φ &gt; 0</span>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="The lift">
+      <div class="panel-h">The lift · ẏ = A y is exact</div>
+      <div class="lift">
+        <div>
+          <div class="eqblock">
+            observables&nbsp; <span class="mono">y = [ x₁, x₂, x₁² ]ᵀ</span><br><br>
+            <span class="lhs">ẏ</span> = A y, &nbsp; A =
+            <div class="matrix" id="Amat"></div>
+          </div>
+          <div class="note" id="eigline"></div>
+        </div>
+        <div>
+          <div class="mp-h">Koopman eigenfunctions</div>
+          <div class="efrow" id="efrow"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Verification">
+      <div class="panel-h">Proof by picture</div>
+      <div class="miniplots">
+        <div>
+          <div class="mp-h">Nonlinear flow vs reconstruction from the linear lift</div>
+          <canvas id="recon" width="440" height="240"></canvas>
+          <div class="legend">
+            <span><span class="dot" style="background:var(--stateA)"></span>x₁ nonlinear</span>
+            <span><span class="dot" style="background:var(--stateB)"></span>x₂ nonlinear</span>
+            <span><span class="dot" style="background:var(--ink-dim)"></span>∘ from ẏ=Ay</span>
+          </div>
+        </div>
+        <div>
+          <div class="mp-h">Eigenfunction value φ(x(t)) is a pure exponential</div>
+          <canvas id="efevo" width="440" height="240"></canvas>
+          <div class="legend" id="efevo-leg"></div>
+        </div>
+      </div>
+      <div class="verdict" id="verdict"></div>
+    </section>
+  </div>
+</main>
+
+<!-- ============ TAB 2: EDMD ============ -->
+<main id="tab-edmd" class="hidden">
+  <section class="panel" aria-label="EDMD controls">
+    <div class="panel-h">Dictionary Ψ(x)</div>
+    <div class="choice" id="dict-choice">
+      <button data-d="inv" class="sel"><span>{ 1, x₁, x₂, x₁² }</span><span class="tag">invariant</span></button>
+      <button data-d="quad"><span>full quadratic</span><span class="tag">6 terms</span></button>
+      <button data-d="cubic"><span>full cubic</span><span class="tag">10 terms</span></button>
+    </div>
+    <div class="divider"></div>
+    <div class="panel-h" style="margin-bottom:10px">Data</div>
+    <div class="param"><div class="param-top"><span class="param-name">Snapshots M</span><span class="param-val" id="v-M"></span></div>
+      <input type="range" id="s-M" min="40" max="600" step="20" value="300"></div>
+    <div class="param"><div class="param-top"><span class="param-name">Measurement noise σ</span><span class="param-val" id="v-noise"></span></div>
+      <input type="range" id="s-noise" min="0" max="0.06" step="0.002" value="0"></div>
+    <div class="param"><div class="param-top"><span class="param-name">Sample step Δt</span><span class="param-val" id="v-dt"></span></div>
+      <input type="range" id="s-dt" min="0.02" max="0.3" step="0.01" value="0.1"></div>
+    <div class="divider"></div>
+    <div class="panel-h" style="margin-bottom:10px">True rates</div>
+    <div class="param"><div class="param-top"><span class="param-name"><span class="mono" style="color:var(--e-mu)">μ</span></span><span class="param-val" id="v-mu2"></span></div>
+      <input type="range" id="s-mu2" min="-1" max="0.2" step="0.01" value="-0.1"></div>
+    <div class="param"><div class="param-top"><span class="param-name"><span class="mono" style="color:var(--e-lam)">λ</span></span><span class="param-val" id="v-lam2"></span></div>
+      <input type="range" id="s-lam2" min="-2" max="-0.1" step="0.01" value="-1"></div>
+    <button id="resample" style="width:100%;margin-top:14px;background:var(--panel-2);border:1px solid var(--primary);
+      color:var(--ink);font-family:inherit;font-size:13.5px;padding:11px;border-radius:10px;cursor:pointer">Resample data</button>
+  </section>
+
+  <div class="rightcol">
+    <section class="panel" aria-label="Spectrum">
+      <div class="panel-h">Recovered Koopman spectrum · continuous time</div>
+      <canvas id="spectrum" width="900" height="440"></canvas>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--primary)"></span>EDMD eigenvalue ln(Λ)/Δt</span>
+        <span><span class="dot" style="border:1.5px solid var(--ink-dim);background:transparent"></span>true lattice iμ + jλ</span>
+      </div>
+      <div class="verdict" id="edmd-verdict"></div>
+    </section>
+
+    <section class="panel" aria-label="Prediction">
+      <div class="panel-h">Prediction from the identified linear model</div>
+      <canvas id="predict" width="900" height="280"></canvas>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--stateA)"></span>x₁ true</span>
+        <span><span class="dot" style="background:var(--stateB)"></span>x₂ true</span>
+        <span><span class="dot" style="background:var(--ink-dim)"></span>∘ EDMD linear prediction</span>
+      </div>
+      <div class="note" id="pred-note"></div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  Single-file explainer · works offline once loaded · drop <code>index.html</code> into a GitHub Pages repo.
+  The lift is exact because <span class="mono">span{x₁, x₂, x₁²}</span> is closed under the Koopman generator <span class="mono">L g = ∇g · f</span>; EDMD reproduces this spectrum from snapshots alone, and reveals how a non-invariant dictionary introduces error.
+</footer>
+
+<script>
+/* ================= shared linear algebra ================= */
+function matmul(A,B){const n=A.length,m=B[0].length,K=B.length,C=Array.from({length:n},()=>Array(m).fill(0));
+  for(let i=0;i<n;i++)for(let j=0;j<m;j++)for(let l=0;l<K;l++)C[i][j]+=A[i][l]*B[l][j];return C;}
+function transpose(A){return A[0].map((_,j)=>A.map(r=>r[j]));}
+function inv(A){const n=A.length;let M=A.map((r,i)=>[...r,...Array.from({length:n},(_,j)=>i===j?1:0)]);
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;[M[c],M[p]]=[M[p],M[c]];
+    const pv=M[c][c]||1e-12;for(let k=0;k<2*n;k++)M[c][k]/=pv;
+    for(let r=0;r<n;r++)if(r!==c){const f=M[r][c];for(let k=0;k<2*n;k++)M[r][k]-=f*M[c][k];}}
+  return M.map(r=>r.slice(n));}
+function traceM(A){let t=0;for(let i=0;i<A.length;i++)t+=A[i][i];return t;}
+function charPoly(A){const n=A.length;let M=Array.from({length:n},()=>Array(n).fill(0)),c=[1];
+  const I=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?1:0));
+  for(let k=1;k<=n;k++){let AM=matmul(A,M);for(let i=0;i<n;i++)for(let j=0;j<n;j++)AM[i][j]+=c[k-1]*I[i][j];
+    M=AM;c.push(-traceM(matmul(A,M))/k);}return c;}
+const cadd=(a,b)=>[a[0]+b[0],a[1]+b[1]],csub=(a,b)=>[a[0]-b[0],a[1]-b[1]],
+  cmul=(a,b)=>[a[0]*b[0]-a[1]*b[1],a[0]*b[1]+a[1]*b[0]],
+  cdiv=(a,b)=>{const d=b[0]*b[0]+b[1]*b[1]||1e-12;return[(a[0]*b[0]+a[1]*b[1])/d,(a[1]*b[0]-a[0]*b[1])/d];};
+function polyval(c,z){let r=[c[0],0];for(let i=1;i<c.length;i++)r=cadd(cmul(r,z),[c[i],0]);return r;}
+function eigvals(A){const c=charPoly(A),n=c.length-1;if(n<1)return[];let z=[];
+  for(let i=0;i<n;i++){const th=2*Math.PI*i/n;z.push([0.9*Math.cos(th)+0.04,0.9*Math.sin(th)]);}
+  for(let it=0;it<500;it++){for(let i=0;i<n;i++){let num=polyval(c,z[i]),den=[1,0];
+    for(let j=0;j<n;j++)if(j!==i)den=cmul(den,csub(z[i],z[j]));z[i]=csub(z[i],cdiv(num,den));}}
+  return z.map(p=>[Math.abs(p[0])<1e-9?0:p[0],Math.abs(p[1])<1e-7?0:p[1]]);}
+
+/* ================= dynamics ================= */
+const P={mu:-0.1,lam:-1,x1:1.4,x2:2.6,ef:"mu",field:true,contour:true,manifold:true,anim:true};
+function f(x,mu,lam){return [mu*x[0], lam*(x[1]-x[0]*x[0])];}
+function rk4(x,dt,mu,lam){const k1=f(x,mu,lam),x2=[x[0]+dt/2*k1[0],x[1]+dt/2*k1[1]],k2=f(x2,mu,lam),
+  x3=[x[0]+dt/2*k2[0],x[1]+dt/2*k2[1]],k3=f(x3,mu,lam),x4=[x[0]+dt*k3[0],x[1]+dt*k3[1]],k4=f(x4,mu,lam);
+  return [x[0]+dt/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]), x[1]+dt/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1])];}
+function bcoef(mu,lam){let d=lam-2*mu; if(Math.abs(d)<0.04)d=(d<0?-1:1)*0.04; return lam/d;}
+// eigenfunctions
+function phi(name,x,mu,lam){ if(name==="mu")return x[0]; if(name==="2mu")return x[0]*x[0];
+  return x[1]-bcoef(mu,lam)*x[0]*x[0]; }
+function efEigval(name,mu,lam){ return name==="mu"?mu : name==="2mu"?2*mu : lam; }
+function efColor(name){ return name==="mu"?"--e-mu":name==="2mu"?"--e-2mu":"--e-lam"; }
+
+/* view window */
+const VX=[-2.25,2.25], VY=[-1.5,4.6];
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+
+/* ================= phase-space stage ================= */
+const stage=document.getElementById("stage"), sctx=stage.getContext("2d");
+let fieldCanvas=document.createElement("canvas");
+let traj=[], animT=0, rafId=null;
+
+function computeTrajectory(){
+  const dt=0.03, N=700; let x=[P.x1,P.x2]; traj=[];
+  for(let i=0;i<N;i++){ traj.push([x[0],x[1],i*dt]); x=rk4(x,dt,P.mu,P.lam);
+    if(Math.abs(x[0])>6||Math.abs(x[1])>10)break; }
+}
+function sx(x1,w){return (x1-VX[0])/(VX[1]-VX[0])*w;}
+function sy(x2,h){return h-(x2-VY[0])/(VY[1]-VY[0])*h;}
+function invx(px,w){return VX[0]+px/w*(VX[1]-VX[0]);}
+function invy(py,h){return VY[0]+(h-py)/h*(VY[1]-VY[0]);}
+
+function diverging(t){ // t in [-1,1] -> rgb string; dark at 0
+  t=Math.max(-1,Math.min(1,t)); const a=Math.pow(Math.abs(t),0.75);
+  let r,g,b;
+  if(t<0){ // teal
+    r=Math.round(11+(24-11)*a); g=Math.round(10+(196-10)*a); b=Math.round(22+(182-22)*a);
+  } else { // coral
+    r=Math.round(11+(255-11)*a); g=Math.round(10+(138-10)*a); b=Math.round(22+(92-22)*a);
+  }
+  return [r,g,b];
+}
+function renderField(Nx,Ny,grid,vmax){
+  fieldCanvas.width=Nx; fieldCanvas.height=Ny;
+  const fctx=fieldCanvas.getContext("2d"), img=fctx.createImageData(Nx,Ny);
+  for(let j=0;j<Ny;j++)for(let i=0;i<Nx;i++){
+    const v=grid[j*Nx+i], [r,g,b]=diverging(v/vmax), k=(j*Nx+i)*4;
+    img.data[k]=r;img.data[k+1]=g;img.data[k+2]=b;img.data[k+3]=205;
+  }
+  fctx.putImageData(img,0,0);
+}
+// marching squares for one level
+function contourLevel(grid,Nx,Ny,level,w,h){
+  const segs=[]; const gx=i=>VX[0]+i/(Nx-1)*(VX[1]-VX[0]), gy=j=>VY[0]+j/(Ny-1)*(VY[1]-VY[0]);
+  const val=(i,j)=>grid[j*Nx+i];
+  const ip=(a,b,va,vb)=>(level-va)/(vb-va+1e-12);
+  for(let j=0;j<Ny-1;j++)for(let i=0;i<Nx-1;i++){
+    const tl=val(i,j),tr=val(i+1,j),br=val(i+1,j+1),bl=val(i,j+1);
+    let c=(tl>level?8:0)|(tr>level?4:0)|(br>level?2:0)|(bl>level?1:0);
+    if(c===0||c===15)continue;
+    const P_=[]; // edge crossings: top,right,bottom,left
+    if((tl>level)!==(tr>level))P_.push([i+ip(0,0,tl,tr),j]);
+    if((tr>level)!==(br>level))P_.push([i+1,j+ip(0,0,tr,br)]);
+    if((br>level)!==(bl>level))P_.push([i+ip(0,0,bl,br),j+1]);
+    if((tl>level)!==(bl>level))P_.push([i,j+ip(0,0,tl,bl)]);
+    if(P_.length>=2){ for(let s=0;s+1<P_.length;s+=2){
+      segs.push([ sx(gx(P_[s][0]),w),sy(gy(P_[s][1]),h), sx(gx(P_[s+1][0]),w),sy(gy(P_[s+1][1]),h) ]); } }
+  }
+  return segs;
+}
+
+function drawStage(){
+  const dpr=window.devicePixelRatio||1, W=stage.clientWidth||900, H=Math.round(W*620/900);
+  stage.width=W*dpr; stage.height=H*dpr; sctx.setTransform(dpr,0,0,dpr,0,0);
+  sctx.clearRect(0,0,W,H);
+  // sample eigenfunction grid
+  const Nx=180,Ny=Math.round(Nx*(VY[1]-VY[0])/(VX[1]-VX[0]));
+  const grid=new Float64Array(Nx*Ny); let vmax=1e-6;
+  for(let j=0;j<Ny;j++)for(let i=0;i<Nx;i++){
+    const x1=VX[0]+i/(Nx-1)*(VX[1]-VX[0]), x2=VY[0]+j/(Ny-1)*(VY[1]-VY[0]);
+    const v=phi(P.ef,[x1,x2],P.mu,P.lam); grid[j*Nx+i]=v; if(Math.abs(v)>vmax)vmax=Math.abs(v);
+  }
+  renderField(Nx,Ny,grid,vmax);
+  sctx.imageSmoothingEnabled=true; sctx.drawImage(fieldCanvas,0,0,W,H);
+  // contour level sets
+  if(P.contour){ sctx.lineWidth=1; const col=cssv(efColor(P.ef));
+    const levels=[]; for(let k=-4;k<=4;k++){ if(k!==0)levels.push(k/5*vmax); }
+    sctx.strokeStyle="rgba(255,255,255,0.16)";
+    levels.forEach(lv=>{ const segs=contourLevel(grid,Nx,Ny,lv,W,H);
+      sctx.beginPath(); segs.forEach(s=>{sctx.moveTo(s[0],s[1]);sctx.lineTo(s[2],s[3]);}); sctx.stroke(); });
+    // zero level set emphasised in eigenfunction colour
+    const z=contourLevel(grid,Nx,Ny,0,W,H);
+    sctx.strokeStyle=col; sctx.lineWidth=1.8; sctx.beginPath();
+    z.forEach(s=>{sctx.moveTo(s[0],s[1]);sctx.lineTo(s[2],s[3]);}); sctx.stroke();
+  }
+  // vector field
+  if(P.field){ const gx=15,gy=Math.round(gx*(VY[1]-VY[0])/(VX[1]-VX[0]));
+    sctx.strokeStyle="rgba(234,231,247,0.32)"; sctx.fillStyle="rgba(234,231,247,0.32)"; sctx.lineWidth=1;
+    for(let a=0;a<=gx;a++)for(let b=0;b<=gy;b++){
+      const x1=VX[0]+a/gx*(VX[1]-VX[0]), x2=VY[0]+b/gy*(VY[1]-VY[0]);
+      const d=f([x1,x2],P.mu,P.lam), mag=Math.hypot(d[0],d[1])||1e-9;
+      const L=13, ux=d[0]/mag, uy=d[1]/mag;
+      const px=sx(x1,W),py=sy(x2,H), ex=px+ux*L, ey=py-uy*L;
+      sctx.beginPath();sctx.moveTo(px,py);sctx.lineTo(ex,ey);sctx.stroke();
+      const ah=3.4,ang=Math.atan2(-(uy),ux);
+      sctx.beginPath();sctx.moveTo(ex,ey);
+      sctx.lineTo(ex-ah*Math.cos(ang-0.5),ey-ah*Math.sin(ang-0.5));
+      sctx.lineTo(ex-ah*Math.cos(ang+0.5),ey-ah*Math.sin(ang+0.5));
+      sctx.closePath();sctx.fill();
+    }
+  }
+  // slow manifold x2 = x1^2
+  if(P.manifold){ sctx.strokeStyle="rgba(255,255,255,0.5)"; sctx.setLineDash([5,4]); sctx.lineWidth=1.5;
+    sctx.beginPath(); let first=true;
+    for(let px=0;px<=W;px+=3){ const x1=invx(px,W), x2=x1*x1; if(x2>VY[1]+1)continue;
+      const py=sy(x2,H); if(first){sctx.moveTo(px,py);first=false;}else sctx.lineTo(px,py);}
+    sctx.stroke(); sctx.setLineDash([]);
+    sctx.fillStyle="rgba(255,255,255,0.6)"; sctx.font="11px 'IBM Plex Mono',monospace";
+    sctx.fillText("x₂ = x₁²", sx(1.35,W)+6, sy(1.35*1.35,H)-6);
+  }
+  // trajectory
+  if(traj.length){
+    sctx.lineWidth=2.4;
+    for(let i=1;i<traj.length;i++){ const tt=i/traj.length;
+      sctx.strokeStyle=`rgba(255,255,255,${0.28+0.5*(1-tt)})`;
+      sctx.beginPath(); sctx.moveTo(sx(traj[i-1][0],W),sy(traj[i-1][1],H));
+      sctx.lineTo(sx(traj[i][0],W),sy(traj[i][1],H)); sctx.stroke(); }
+    // start
+    const s0=traj[0]; sctx.fillStyle=cssv("--ink");
+    sctx.beginPath();sctx.arc(sx(s0[0],W),sy(s0[1],H),4.5,0,7);sctx.fill();
+    // animated marker
+    let mi = P.anim? Math.min(traj.length-1, Math.floor(animT)) : traj.length-1;
+    const mk=traj[mi]; const col=cssv(efColor(P.ef));
+    sctx.fillStyle=col; sctx.shadowColor=col; sctx.shadowBlur=14;
+    sctx.beginPath();sctx.arc(sx(mk[0],W),sy(mk[1],H),6,0,7);sctx.fill(); sctx.shadowBlur=0;
+    // phi readout badge near marker
+    const pv=phi(P.ef,[mk[0],mk[1]],P.mu,P.lam);
+    sctx.fillStyle="rgba(11,10,22,0.82)"; const bx=sx(mk[0],W)+12, by=sy(mk[1],H)-26;
+    sctx.fillRect(bx,by,118,22); sctx.strokeStyle=col; sctx.lineWidth=1; sctx.strokeRect(bx,by,118,22);
+    sctx.fillStyle=col; sctx.font="11px 'IBM Plex Mono',monospace"; sctx.textBaseline="middle";
+    sctx.fillText("φ = "+pv.toFixed(3), bx+8, by+12); sctx.textBaseline="alphabetic";
+  }
+  // axes ticks
+  sctx.strokeStyle="rgba(234,231,247,0.14)"; sctx.fillStyle=cssv("--ink-faint");
+  sctx.font="10px 'IBM Plex Mono',monospace";
+  if(VY[0]<0&&VY[1]>0){const y0=sy(0,H);sctx.beginPath();sctx.moveTo(0,y0);sctx.lineTo(W,y0);sctx.stroke();}
+  if(VX[0]<0&&VX[1]>0){const x0=sx(0,W);sctx.beginPath();sctx.moveTo(x0,0);sctx.lineTo(x0,H);sctx.stroke();}
+  sctx.fillText("x₁",W-18,sy(0,H)-6); sctx.fillText("x₂",sx(0,W)+6,14);
+}
+
+/* ================= mini plots ================= */
+function drawRecon(){
+  const cv=document.getElementById("recon"),ctx=cv.getContext("2d");
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth||440,H=Math.round(W*240/440);
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const m={l:38,r:10,t:10,b:24},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  // simulate nonlinear + lifted
+  const dt=0.04,N=180,mu=P.mu,lam=P.lam; let x=[P.x1,P.x2];
+  const A=[[mu,0,0],[0,lam,-lam],[0,0,2*mu]]; let y=[P.x1,P.x2,P.x1*P.x1];
+  const t=[],x1n=[],x2n=[],x1l=[],x2l=[];
+  function stepLin(y){const d=[A[0][0]*y[0]+A[0][1]*y[1]+A[0][2]*y[2],A[1][0]*y[0]+A[1][1]*y[1]+A[1][2]*y[2],A[2][0]*y[0]+A[2][1]*y[1]+A[2][2]*y[2]];return d;}
+  function rk4l(y){const k1=stepLin(y),y2=y.map((v,i)=>v+dt/2*k1[i]),k2=stepLin(y2),
+    y3=y.map((v,i)=>v+dt/2*k2[i]),k3=stepLin(y3),y4=y.map((v,i)=>v+dt*k3[i]),k4=stepLin(y4);
+    return y.map((v,i)=>v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]));}
+  for(let i=0;i<N;i++){ t.push(i*dt);x1n.push(x[0]);x2n.push(x[1]);x1l.push(y[0]);x2l.push(y[1]);
+    x=rk4(x,dt,mu,lam); y=rk4l(y);}
+  const all=x1n.concat(x2n),ymin=Math.min(...all),ymax=Math.max(...all),pad=(ymax-ymin)*0.12||1;
+  const YMIN=ymin-pad,YMAX=ymax+pad,tmax=t[t.length-1];
+  const X=v=>m.l+v/tmax*pw,Y=v=>m.t+(1-(v-YMIN)/(YMAX-YMIN))*ph;
+  ctx.strokeStyle=cssv("--grid");ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const yy=m.t+ph*i/4;ctx.beginPath();ctx.moveTo(m.l,yy);ctx.lineTo(W-m.r,yy);ctx.stroke();}
+  if(YMIN<0&&YMAX>0){ctx.strokeStyle=cssv("--line");ctx.beginPath();ctx.moveTo(m.l,Y(0));ctx.lineTo(W-m.r,Y(0));ctx.stroke();}
+  function line(arr,col){ctx.strokeStyle=cssv(col);ctx.lineWidth=2;ctx.beginPath();
+    arr.forEach((v,i)=>{const xx=X(t[i]),yy=Y(v);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});ctx.stroke();}
+  line(x1n,"--stateA"); line(x2n,"--stateB");
+  ctx.fillStyle=cssv("--ink-dim");
+  for(let i=0;i<N;i+=14){ctx.beginPath();ctx.arc(X(t[i]),Y(x1l[i]),2.6,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(X(t[i]),Y(x2l[i]),2.6,0,7);ctx.fill();}
+  ctx.fillStyle=cssv("--ink-faint");ctx.font="10px 'IBM Plex Mono',monospace";
+  ctx.fillText("t",W-m.r-6,H-8);
+}
+function drawEfEvo(){
+  const cv=document.getElementById("efevo"),ctx=cv.getContext("2d");
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth||440,H=Math.round(W*240/440);
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const m={l:44,r:10,t:10,b:24},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const dt=0.04,N=180,mu=P.mu,lam=P.lam,ev=efEigval(P.ef,mu,lam); let x=[P.x1,P.x2];
+  const p0=phi(P.ef,x,mu,lam),t=[],act=[],pred=[];
+  for(let i=0;i<N;i++){t.push(i*dt);act.push(phi(P.ef,x,mu,lam));pred.push(p0*Math.exp(ev*i*dt));x=rk4(x,dt,mu,lam);}
+  const all=act.concat(pred),ymin=Math.min(...all,0),ymax=Math.max(...all,0),pad=(ymax-ymin)*0.12||1;
+  const YMIN=ymin-pad,YMAX=ymax+pad,tmax=t[t.length-1];
+  const X=v=>m.l+v/tmax*pw,Y=v=>m.t+(1-(v-YMIN)/(YMAX-YMIN))*ph;
+  ctx.strokeStyle=cssv("--grid");for(let i=0;i<=4;i++){const yy=m.t+ph*i/4;ctx.beginPath();ctx.moveTo(m.l,yy);ctx.lineTo(W-m.r,yy);ctx.stroke();}
+  if(YMIN<0&&YMAX>0){ctx.strokeStyle=cssv("--line");ctx.beginPath();ctx.moveTo(m.l,Y(0));ctx.lineTo(W-m.r,Y(0));ctx.stroke();}
+  const col=cssv(efColor(P.ef));
+  ctx.strokeStyle=col;ctx.lineWidth=2.2;ctx.setLineDash([6,4]);ctx.beginPath();
+  pred.forEach((v,i)=>{const xx=X(t[i]),yy=Y(v);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=col;for(let i=0;i<N;i+=9){ctx.beginPath();ctx.arc(X(t[i]),Y(act[i]),2.6,0,7);ctx.fill();}
+  ctx.fillStyle=cssv("--ink-faint");ctx.font="10px 'IBM Plex Mono',monospace";ctx.fillText("t",W-m.r-6,H-8);
+  document.getElementById("efevo-leg").innerHTML=
+    `<span><span class="dot" style="background:${col}"></span>∘ φ(x(t)) measured</span>`+
+    `<span><span class="dot" style="background:${col}"></span>–– φ(x₀)·e^{${efEigval(P.ef,mu,lam).toFixed(2)}·t}</span>`;
+}
+
+/* ================= lift panel ================= */
+function drawLift(){
+  const mu=P.mu,lam=P.lam,b=bcoef(mu,lam);
+  const A=[[mu,0,0],[0,lam,-lam],[0,0,2*mu]];
+  document.getElementById("Amat").innerHTML=A.flat().map(v=>`<span>${(+v.toFixed(3))}</span>`).join("");
+  document.getElementById("eigline").innerHTML=
+    `eigenvalues of A: <span class="mono" style="color:var(--e-mu)">μ=${mu.toFixed(2)}</span>, `+
+    `<span class="mono" style="color:var(--e-lam)">λ=${lam.toFixed(2)}</span>, `+
+    `<span class="mono" style="color:var(--e-2mu)">2μ=${(2*mu).toFixed(2)}</span> — read directly off the diagonal.`;
+  const efs=[
+    {n:"mu",form:"φ_μ = x₁",ev:mu,c:"--e-mu",lab:"μ"},
+    {n:"lam",form:`φ_λ = x₂ − ${b.toFixed(2)}·x₁²`,ev:lam,c:"--e-lam",lab:"λ"},
+    {n:"2mu",form:"φ_2μ = x₁²",ev:2*mu,c:"--e-2mu",lab:"2μ"}
+  ];
+  document.getElementById("efrow").innerHTML=efs.map(e=>`
+    <div class="efcard" style="border-color:${cssv(e.c)}44">
+      <div class="ef-h"><span class="badge" style="background:${cssv(e.c)}22;color:${cssv(e.c)}">Lφ = ${e.lab}·φ</span>
+        <span class="ev" style="color:${cssv(e.c)}">e^{${e.ev.toFixed(2)}t}</span></div>
+      <div class="ef-form">${e.form}</div>
+    </div>`).join("");
+  // verdict: reconstruction error
+  const dt=0.04,N=180; let x=[P.x1,P.x2],y=[P.x1,P.x2,P.x1*P.x1];
+  const Am=[[mu,0,0],[0,lam,-lam],[0,0,2*mu]];
+  const sl=y=>[Am[0][0]*y[0]+Am[0][1]*y[1]+Am[0][2]*y[2],Am[1][0]*y[0]+Am[1][1]*y[1]+Am[1][2]*y[2],Am[2][0]*y[0]+Am[2][1]*y[1]+Am[2][2]*y[2]];
+  const rk4l=y=>{const k1=sl(y),y2=y.map((v,i)=>v+dt/2*k1[i]),k2=sl(y2),y3=y.map((v,i)=>v+dt/2*k2[i]),k3=sl(y3),y4=y.map((v,i)=>v+dt*k3[i]),k4=sl(y4);return y.map((v,i)=>v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]));};
+  let err=0;for(let i=0;i<N;i++){err=Math.max(err,Math.abs(x[0]-y[0]),Math.abs(x[1]-y[1]));x=rk4(x,dt,mu,lam);y=rk4l(y);}
+  document.getElementById("verdict").innerHTML=
+    `Max mismatch between the nonlinear flow and the reconstruction from ẏ = A y over the window: <b>${err.toExponential(1)}</b> — the lift is exact to integrator precision. A curved observable evolving as a straight exponential is the whole idea behind Koopman-based linear control.`;
+}
+
+/* ================= render (tab1) ================= */
+function renderExact(){ computeTrajectory(); drawStage(); drawRecon(); drawEfEvo(); drawLift(); }
+function startAnim(){
+  if(rafId)cancelAnimationFrame(rafId);
+  const loop=()=>{ if(P.anim&&traj.length){ animT+=traj.length/240; if(animT>=traj.length)animT=0; drawStage(); rafId=requestAnimationFrame(loop);} };
+  if(P.anim){ rafId=requestAnimationFrame(loop); }
+}
+
+/* control wiring tab1 */
+function bindRange(id,key,label,disp){const el=document.getElementById(id),v=document.getElementById(label);
+  const upd=()=>{P[key]=parseFloat(el.value);v.textContent=disp?disp(P[key]):P[key].toFixed(2);renderExact();};
+  el.addEventListener("input",upd);upd();}
+bindRange("s-mu","mu","v-mu"); bindRange("s-lam","lam","v-lam");
+bindRange("s-x1","x1","v-x1"); bindRange("s-x2","x2","v-x2");
+document.querySelectorAll("#ef-choice button").forEach(btn=>{btn.onclick=()=>{
+  document.querySelectorAll("#ef-choice button").forEach(b=>b.classList.remove("sel"));
+  btn.classList.add("sel");P.ef=btn.dataset.ef;renderExact();};});
+["field","contour","manifold","anim"].forEach(k=>{const el=document.getElementById("t-"+k);
+  el.onchange=()=>{P[k]=el.checked; if(k==="anim"){animT=0;startAnim();} renderExact();};});
+stage.addEventListener("click",e=>{const r=stage.getBoundingClientRect(),W=stage.clientWidth,H=stage.clientHeight;
+  const x1=invx(e.clientX-r.left,W),x2=invy(e.clientY-r.top,H);
+  P.x1=Math.max(-2,Math.min(2,x1));P.x2=Math.max(-1,Math.min(4,x2));
+  document.getElementById("s-x1").value=P.x1;document.getElementById("s-x2").value=P.x2;
+  document.getElementById("v-x1").textContent=P.x1.toFixed(2);document.getElementById("v-x2").textContent=P.x2.toFixed(2);
+  animT=0; renderExact();});
+
+/* ================= EDMD (tab2) ================= */
+const E={mu:-0.1,lam:-1,M:300,noise:0,dt:0.1,dict:"inv",seed:1};
+function dictFn(name){
+  if(name==="inv")return {f:x=>[1,x[0],x[1],x[0]*x[0]],deg:2,names:["1","x₁","x₂","x₁²"]};
+  if(name==="quad")return {f:x=>[1,x[0],x[1],x[0]*x[0],x[0]*x[1],x[1]*x[1]],deg:2,names:[]};
+  return {f:x=>[1,x[0],x[1],x[0]*x[0],x[0]*x[1],x[1]*x[1],x[0]**3,x[0]*x[0]*x[1],x[0]*x[1]*x[1],x[1]**3],deg:3,names:[]};
+}
+let rngState=12345; function rng(){rngState=(rngState*1103515245+12345)&0x7fffffff;return rngState/0x7fffffff;}
+function gauss(){return (rng()+rng()+rng()+rng()-2)*0.8;}
+function runEDMD(){
+  const d=dictFn(E.dict), mu=E.mu, lam=E.lam, dt=E.dt;
+  const PX=[],PY=[];
+  for(let s=0;s<E.M;s++){ const x=[(rng()*2-1)*1.9,(rng()*2-1)*2.4+0.6];
+    let xp=rk4(x,dt,mu,lam);
+    if(E.noise>0)xp=[xp[0]+gauss()*E.noise,xp[1]+gauss()*E.noise];
+    PX.push(d.f(x));PY.push(d.f(xp)); }
+  const Xt=transpose(PX); let G=matmul(Xt,PX);
+  for(let i=0;i<G.length;i++)G[i][i]+=1e-8;
+  const K=matmul(matmul(inv(G),Xt),PY);
+  const disc=eigvals(K);
+  const cont=disc.map(z=>{const mag=Math.hypot(z[0],z[1]),ph=Math.atan2(z[1],z[0]);
+    return [mag<1e-9?-99:Math.log(mag)/dt, ph/dt];});
+  return {cont,d,K};
+}
+function drawSpectrum(){
+  rngState=E.seed*7919+1;
+  const res=runEDMD();
+  const cv=document.getElementById("spectrum"),ctx=cv.getContext("2d");
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth||900,H=Math.round(W*440/900);
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const m={l:52,r:16,t:16,b:34},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const XR=[Math.min(-2.4,3*E.lam-0.2),0.4], YR=[-2.2,2.2];
+  const X=v=>m.l+(v-XR[0])/(XR[1]-XR[0])*pw, Y=v=>m.t+(1-(v-YR[0])/(YR[1]-YR[0]))*ph;
+  // stable region shading (Re<0)
+  ctx.fillStyle="rgba(56,217,196,0.05)";ctx.fillRect(m.l,m.t,X(0)-m.l,ph);
+  // grid + axes
+  ctx.strokeStyle=cssv("--grid");ctx.lineWidth=1;ctx.fillStyle=cssv("--ink-faint");ctx.font="10px 'IBM Plex Mono',monospace";
+  ctx.textAlign="center";ctx.textBaseline="top";
+  for(let v=Math.ceil(XR[0]);v<=XR[1];v++){const xx=X(v);ctx.strokeStyle=cssv("--grid");
+    ctx.beginPath();ctx.moveTo(xx,m.t);ctx.lineTo(xx,H-m.b);ctx.stroke();ctx.fillStyle=cssv("--ink-faint");ctx.fillText(v,xx,H-m.b+7);}
+  ctx.textAlign="right";ctx.textBaseline="middle";
+  for(let v=-2;v<=2;v++){const yy=Y(v);ctx.strokeStyle=cssv("--grid");ctx.beginPath();ctx.moveTo(m.l,yy);ctx.lineTo(W-m.r,yy);ctx.stroke();
+    ctx.fillStyle=cssv("--ink-faint");ctx.fillText(v,m.l-8,yy);}
+  // imaginary axis
+  ctx.strokeStyle=cssv("--line");ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(X(0),m.t);ctx.lineTo(X(0),H-m.b);ctx.stroke();
+  ctx.fillStyle=cssv("--ink-faint");ctx.textAlign="center";ctx.textBaseline="top";ctx.fillText("Re  (decay rate)",m.l+pw/2,H-16);
+  ctx.save();ctx.translate(14,m.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText("Im",0,0);ctx.restore();
+  // true lattice targets i*mu + j*lam (i,j>=0, i+j<=deg)
+  const targets=[]; for(let i=0;i<=res.d.deg;i++)for(let j=0;j<=res.d.deg;j++) if(i+j<=res.d.deg)targets.push(i*E.mu+j*E.lam);
+  ctx.strokeStyle=cssv("--ink-dim");ctx.lineWidth=1.4;
+  targets.forEach(tr=>{ctx.beginPath();ctx.arc(X(tr),Y(0),7,0,7);ctx.stroke();});
+  // EDMD eigenvalues
+  res.cont.forEach(z=>{ if(z[0]<-90)return; const col=cssv("--primary");
+    ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(X(z[0]),Y(z[1]),4.2,0,7);ctx.fill();ctx.shadowBlur=0;});
+  // verdict: recovery error on invariant eigenvalues {0,mu,lam,2mu}
+  const key=[0,E.mu,E.lam,2*E.mu];
+  const match=key.map(k=>{let best=1e9;res.cont.forEach(z=>{if(z[0]>-90){const dd=Math.hypot(z[0]-k,z[1]);if(dd<best)best=dd;}});return best;});
+  const worst=Math.max(...match);
+  const exactDict = E.dict==="inv";
+  const nComplex = res.cont.filter(z=>Math.abs(z[1])>0.02).length;
+  document.getElementById("edmd-verdict").innerHTML= exactDict
+    ? `Invariant dictionary: the four true eigenvalues <span class="mono">{0, μ, λ, 2μ}</span> are recovered to <b>${worst.toExponential(1)}</b>. Because the span is closed under the generator, EDMD here is not an approximation — it is exact.`
+    : `Richer dictionary: the invariant eigenvalues <span class="mono">{0, μ, λ, 2μ}</span> still land within <b style="color:var(--e-2mu)">${worst.toFixed(3)}</b>, but the extra observables leak out of the invariant span (e.g. x₁x₂ → x₁³), so the remaining eigenvalues are only approximate${nComplex?` and can even turn spurious-complex (${nComplex} here)`:``}. Knowing your dictionary spans an invariant subspace is exactly the guarantee a safety-critical Koopman model needs.`;
+  drawPredict(res);
+}
+function drawPredict(res){
+  const cv=document.getElementById("predict"),ctx=cv.getContext("2d");
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth||900,H=Math.round(W*280/900);
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const m={l:44,r:14,t:12,b:26},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const d=res.d,K=res.K,dt=E.dt,N=60,mu=E.mu,lam=E.lam,x0=[1.5,3.0];
+  // true
+  let x=[...x0]; const tt=[],x1t=[],x2t=[]; let xs=[...x0];
+  const dtf=dt/5;
+  for(let i=0;i<N;i++){tt.push(i*dt);x1t.push(xs[0]);x2t.push(xs[1]);for(let s=0;s<5;s++)xs=rk4(xs,dtf,mu,lam);}
+  // EDMD linear prediction: psi_{k+1} = psi_k K  (row-vector convention)
+  let psi=d.f(x0); const x1p=[],x2p=[];
+  for(let i=0;i<N;i++){x1p.push(psi[1]);x2p.push(psi[2]);
+    const nx=new Array(psi.length).fill(0);
+    for(let a=0;a<psi.length;a++)for(let bb=0;bb<psi.length;bb++)nx[bb]+=psi[a]*K[a][bb];
+    psi=nx;}
+  const all=x1t.concat(x2t),ymin=Math.min(...all),ymax=Math.max(...all),pad=(ymax-ymin)*0.15||1;
+  const YMIN=ymin-pad,YMAX=ymax+pad,tmax=tt[tt.length-1];
+  const X=v=>m.l+v/tmax*pw,Y=v=>m.t+(1-(v-YMIN)/(YMAX-YMIN))*ph;
+  ctx.strokeStyle=cssv("--grid");for(let i=0;i<=4;i++){const yy=m.t+ph*i/4;ctx.beginPath();ctx.moveTo(m.l,yy);ctx.lineTo(W-m.r,yy);ctx.stroke();}
+  if(YMIN<0&&YMAX>0){ctx.strokeStyle=cssv("--line");ctx.beginPath();ctx.moveTo(m.l,Y(0));ctx.lineTo(W-m.r,Y(0));ctx.stroke();}
+  const line=(arr,col)=>{ctx.strokeStyle=cssv(col);ctx.lineWidth=2;ctx.beginPath();arr.forEach((v,i)=>{const xx=X(tt[i]),yy=Y(v);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});ctx.stroke();};
+  line(x1t,"--stateA");line(x2t,"--stateB");
+  ctx.fillStyle=cssv("--ink-dim");
+  for(let i=0;i<N;i+=3){ctx.beginPath();ctx.arc(X(tt[i]),Y(x1p[i]),2.4,0,7);ctx.fill();ctx.beginPath();ctx.arc(X(tt[i]),Y(x2p[i]),2.4,0,7);ctx.fill();}
+  ctx.fillStyle=cssv("--ink-faint");ctx.font="10px 'IBM Plex Mono',monospace";ctx.fillText("t",W-m.r-6,H-8);
+  let perr=0;for(let i=0;i<N;i++)perr=Math.max(perr,Math.abs(x1t[i]-x1p[i]),Math.abs(x2t[i]-x2p[i]));
+  document.getElementById("pred-note").textContent=
+    `Iterating the identified linear map Ψ_{k+1}=Ψ_k K and reading x₁,x₂ back off the dictionary. Max prediction error over ${N} steps: ${perr.toExponential(1)}.`;
+}
+/* EDMD wiring */
+function bindE(id,key,label,disp){const el=document.getElementById(id),v=document.getElementById(label);
+  const upd=()=>{E[key]=parseFloat(el.value);v.textContent=disp?disp(E[key]):E[key].toFixed(2);if(!document.getElementById("tab-edmd").classList.contains("hidden"))drawSpectrum();};
+  el.addEventListener("input",upd);v.textContent=disp?disp(E[key]):E[key].toFixed(2);}
+bindE("s-M","M","v-M",v=>v.toFixed(0));
+bindE("s-noise","noise","v-noise",v=>v.toFixed(3));
+bindE("s-dt","dt","v-dt",v=>v.toFixed(2));
+bindE("s-mu2","mu","v-mu2"); bindE("s-lam2","lam","v-lam2");
+document.querySelectorAll("#dict-choice button").forEach(btn=>{btn.onclick=()=>{
+  document.querySelectorAll("#dict-choice button").forEach(b=>b.classList.remove("sel"));
+  btn.classList.add("sel");E.dict=btn.dataset.d;drawSpectrum();};});
+document.getElementById("resample").onclick=()=>{E.seed=Math.floor(Math.random()*99999)+1;drawSpectrum();};
+
+/* ================= tabs ================= */
+document.querySelectorAll("#tabs .tab").forEach(t=>{t.onclick=()=>{
+  document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.remove("active"));t.classList.add("active");
+  const which=t.dataset.tab;
+  document.getElementById("tab-exact").classList.toggle("hidden",which!=="exact");
+  document.getElementById("tab-edmd").classList.toggle("hidden",which!=="edmd");
+  if(which==="exact"){renderExact();startAnim();} else {if(rafId)cancelAnimationFrame(rafId);drawSpectrum();}
+};});
+window.addEventListener("resize",()=>{ if(!document.getElementById("tab-exact").classList.contains("hidden")){drawStage();drawRecon();drawEfEvo();}
+  else drawSpectrum();});
+
+/* init */
+renderExact(); startAnim();
+
+try{const manifest={name:"Koopman Lift",short_name:"Koopman",display:"standalone",background_color:"#0b0a16",theme_color:"#0b0a16",start_url:"."};
+  const link=document.createElement("link");link.rel="manifest";
+  link.href=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:"application/json"}));document.head.appendChild(link);}catch(e){}
+</script>
+</body>
+</html>
